@@ -6,6 +6,7 @@ Rails.application.routes.draw do
   resources :users, only: [:create] do
     collection do
       post :verify_otp
+      post :resent_otp
     end
   end
   post "/auth/login", to: "authentication#login"

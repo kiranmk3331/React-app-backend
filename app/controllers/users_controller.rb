@@ -1,5 +1,5 @@
 class UsersController < ApplicationController
-  before_action :find_user, only: [:verify_otp]
+  before_action :find_user, only: [:verify_otp, :resent_otp]
 
   def create
     @user = User.new(user_params)
@@ -17,7 +17,7 @@ class UsersController < ApplicationController
   end
 
   def verify_otp
-    if @user.otp === params[:otp]
+    if @user.otp === params[:otp] && Time.now < @user.otp_expires_in
       if @user.update(is_verified: true)
         render json: { verified: true }, status: :ok
       else
@@ -25,7 +25,16 @@ class UsersController < ApplicationController
                status: :unprocessable_entity
       end
     else
-      render json: { errors: "Otp not matching" },
+      render json: { errors: "Otp not matching or otp expired" },
+             status: :unprocessable_entity
+    end
+  end
+
+  def resent_otp
+    if SendOtpService.new(@user).send_otp
+      render json: { user: @user }, status: :ok
+    else
+      render json: { errors: "Otp send failed" },
              status: :unprocessable_entity
     end
   end
