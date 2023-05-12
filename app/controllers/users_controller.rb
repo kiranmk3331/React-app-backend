@@ -1,8 +1,40 @@
 class UsersController < ApplicationController
-  before_action :find_user, only: [:verify_otp, :resent_otp]
+  before_action :set_user, only: %i[ show update destroy verify_otp resent_otp ]
+
+  def index
+    @users = User.all
+    render json: @users
+  end
+
+  def show
+    render json: @user
+  end
 
   def create
     @user = User.new(user_params)
+    @user.password = "password"
+    if @user.save
+      render json: @user, status: :created, location: @user
+    else
+      render json: @user.errors, status: :unprocessable_entity
+    end
+  end
+
+  def update
+    if @user.update(user_params)
+      render json: @user
+    else
+      render json: @user.errors, status: :unprocessable_entity
+    end
+  end
+
+  def destroy
+    @user.destroy
+  end
+
+  def sign_up
+    @user = User.new(user_params_signup)
+    @user.role = select_signup_role
     if @user.save
       if SendOtpService.new(@user).send_otp
         render json: { user: @user }, status: :created
@@ -41,13 +73,27 @@ class UsersController < ApplicationController
 
   private
 
+  def select_signup_role
+    Role.find_by(name: "customer")
+  end
+
+  def set_user
+    if params[:user_id].present?
+      @user = User.find(params[:user_id])
+    else
+      @user = User.find(params[:id])
+    end
+  end
+
   def user_params
     params.permit(
-      :name, :user_name, :email, :password, :password_confirmation
+      :user_name, :email, :role_id
     )
   end
 
-  def find_user
-    @user = User.find(params[:user_id])
+  def user_params_signup
+    params.permit(
+      :name, :user_name, :email, :password, :password_confirmation
+    )
   end
 end
